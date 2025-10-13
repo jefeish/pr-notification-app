@@ -45,7 +45,7 @@ cp .env.example .env
 
 ### PR Creator Notification Guarantee
 
-**🚨 CRITICAL FEATURE**: The app **guarantees** that PR creators are always notified, even if they don't have public email addresses on GitHub.
+**🚨 CRITICAL FEATURE**: The app **ensures** that PR creators are always notified.
 
 #### Fallback Email Methods (in priority order):
 
