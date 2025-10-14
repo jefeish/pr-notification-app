@@ -27,7 +27,7 @@
 
 2. **Email Provider**: Configure SMTP settings for sending emails
 
-3. **Event Configuration**: Configure 5 simple notification categories in `.env`
+3. **Event Configuration**: Configure 6 notification categories in `.env`
 
 ### Installation
 

@@ -28,6 +28,7 @@ import { NotificationService } from './services/notificationService.js';
 import { EventHandlerFactory, BaseHandler } from './handlers/baseHandler.js';
 import { PullRequestHandler } from './handlers/pullRequestHandler.js';
 import { CheckRunHandler } from './handlers/checkRunHandler.js';
+import { DeploymentHandler } from './handlers/deploymentHandler.js';
 import { Logger } from './utils/logger.js';
 import { AppConfig } from './config/appConfig.js';
 
@@ -60,6 +61,8 @@ class AppContainer {
     EventHandlerFactory.register('pull_request', PullRequestHandler);
     EventHandlerFactory.register('pull_request_review', PullRequestHandler);
     EventHandlerFactory.register('check_run', CheckRunHandler);
+    EventHandlerFactory.register('deployment', DeploymentHandler);
+    EventHandlerFactory.register('deployment_status', DeploymentHandler);
     // Additional handlers will be registered here as they're created
 
     this.initialized = true;
@@ -156,11 +159,10 @@ class NotificationApp {
     
     // Pull Request Review Events
     this.app.on("pull_request_review.submitted", (context) => this.handleEvent(context, 'pull_request_review', 'submitted'));
-    // Focus only on completed events for now
-    // this.app.on("check_run.created", (context) => this.handleEvent(context, 'check_run', 'created'));
     
-    // TODO: Add more event handlers as they are implemented
-    // this.app.on("pull_request_review.submitted", (context) => this.handleEvent(context, 'pull_request_review', 'submitted'));
+    // Deployment Events
+    this.app.on("deployment", (context) => this.handleEvent(context, 'deployment', context.payload.action || 'created'));
+    this.app.on("deployment_status", (context) => this.handleEvent(context, 'deployment_status', context.payload.deployment_status?.state || 'unknown'));
 
     // Keep original issues handler for backward compatibility
     this.app.on("issues.opened", async (context) => {

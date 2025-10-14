@@ -1,0 +1,29 @@
+{
+  "deployment": {
+    "id": 12345,
+    "sha": "abc123def456789",
+    "ref": "main",
+    "environment": "production", 
+    "description": "Deploy to production",
+    "creator": {
+      "login": "deploy-bot"
+    },
+    "created_at": "2025-10-13T10:00:00Z"
+  },
+  "deployment_status": {
+    "id": 67890,
+    "state": "success",
+    "target_url": "https://app.example.com",
+    "log_url": "https://ci.example.com/logs/12345",
+    "description": "Deployment completed successfully",
+    "updated_at": "2025-10-13T10:05:00Z"
+  },
+  "repository": {
+    "name": "example-repo",
+    "full_name": "owner/example-repo",
+    "html_url": "https://github.com/owner/example-repo"
+  },
+  "sender": {
+    "login": "deploy-bot"
+  }
+}

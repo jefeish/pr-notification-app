@@ -147,6 +147,11 @@ export class AppConfig {
       return process.env.NOTIFY_PR_UPDATES === 'true';
     }
     
+    // Deployment events
+    if (eventType === 'deployment' || eventType === 'deployment_status') {
+      return process.env.NOTIFY_DEPLOYMENTS === 'true';
+    }
+    
     // Default: disabled for unrecognized events
     Logger.debug(`Event ${eventType}.${action} not configured - defaulting to disabled`);
     return false;

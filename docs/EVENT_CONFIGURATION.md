@@ -49,6 +49,14 @@ The app uses logical categories instead of individual event toggles for easier c
 **Default**: `false`  
 **Recommendation**: Enable only if you want notifications for every commit push
 
+### NOTIFY_DEPLOYMENTS
+**Controls**: Deployment events and status updates
+- `deployment.created` - When a deployment is initiated
+- `deployment_status` - When deployment completes (success/failure)
+
+**Default**: `true`  
+**Recommendation**: Keep enabled to track deployment results
+
 ## Configuration Examples
 
 ### Minimal Setup (Essential notifications only)
@@ -60,6 +68,7 @@ NOTIFY_PR_REVIEWS=true
 NOTIFY_PR_COMMENTS=false
 NOTIFY_CHECK_RESULTS=false
 NOTIFY_PR_UPDATES=false
+NOTIFY_DEPLOYMENTS=false
 ```
 
 ### Balanced Setup (Recommended)
@@ -71,6 +80,7 @@ NOTIFY_PR_REVIEWS=true
 NOTIFY_PR_COMMENTS=true
 NOTIFY_CHECK_RESULTS=true
 NOTIFY_PR_UPDATES=false
+NOTIFY_DEPLOYMENTS=true
 ```
 
 ### Maximum Monitoring
