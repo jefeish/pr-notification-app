@@ -1,17 +1,30 @@
-# Documentation Index
+# Documentation# Documentation Index
 
-Welcome to the PR Notification App documentation! This directory contains comprehensive documentation about the application's architecture, usage, and development guidelines.
 
-## Quick Start
 
-- **[README.md](../README.md)** - Main project overview and setup instructions
-- **[USAGE.md](USAGE.md)** - How to use the application
-- **[CONTRIBUTING.md](CONTRIBUTING.md)** - Guidelines for contributing to the project
+Essential documentation for the PR Notification App.Welcome to the PR Notification App documentation! This directory contains comprehensive documentation about the application's architecture, usage, and development guidelines.
 
-## Architecture & Design
+
+
+## Files## Quick Start
+
+
+
+- **[USAGE.md](USAGE.md)** - How to use the application- **[README.md](../README.md)** - Main project overview and setup instructions
+
+- **[EVENT_CONFIGURATION.md](EVENT_CONFIGURATION.md)** - Event configuration guide- **[USAGE.md](USAGE.md)** - How to use the application
+
+- **[RECIPIENT_CONFIGURATION.md](RECIPIENT_CONFIGURATION.md)** - Recipient setup guide- **[CONTRIBUTING.md](CONTRIBUTING.md)** - Guidelines for contributing to the project
+
+- **[entity-relationship-diagram.md](entity-relationship-diagram.md)** - System architecture overview
+
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** - Guidelines for contributing## Architecture & Design
+
+- **[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)** - Code of conduct
 
 - **[Entity Relationship Diagram](entity-relationship-diagram.md)** - Visual representation of the system architecture
-- **[ARCHITECTURE_COMPARISON.md](ARCHITECTURE_COMPARISON.md)** - Comparison between old and new architectures
+
+For setup instructions, see the main [README.md](../README.md).- **[ARCHITECTURE_COMPARISON.md](ARCHITECTURE_COMPARISON.md)** - Comparison between old and new architectures
 - **[IMPLEMENTATION_SUMMARY.md](IMPLEMENTATION_SUMMARY.md)** - Summary of implementation details
 - **[REFACTOR_README.md](REFACTOR_README.md)** - Details about the refactoring process
 
