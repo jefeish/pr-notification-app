@@ -41,14 +41,31 @@ export class CheckRunHandler extends BaseHandler {
   }
 
   /**
-   * Handle check run events
+   * Handle check run and check suite events
    * @param {Object} context - GitHub webhook context
    * @param {string} action - Event action (completed, created, etc.)
    * @returns {Promise<Object>} Result object with success status
    */
   async handle(context, action) {
     const repo = context.payload.repository?.full_name || 'unknown';
-    Logger.info(`WEBHOOK RECEIVED: check_run.${action} in ${repo}`);
+    const eventType = context.payload.check_suite ? 'check_suite' : 'check_run';
+    Logger.info(`WEBHOOK RECEIVED: ${eventType}.${action} in ${repo}`);
+    
+    if (eventType === 'check_suite') {
+      return this.handleCheckSuite(context, action);
+    }
+    
+    return this.handleCheckRun(context, action);
+  }
+
+  /**
+   * Handle check run events
+   * @param {Object} context - GitHub webhook context
+   * @param {string} action - Event action (completed, created, etc.)
+   * @returns {Promise<Object>} Result object with success status
+   */
+  async handleCheckRun(context, action) {
+    const repo = context.payload.repository?.full_name || 'unknown';
 
     // Extract check run data from payload
     const checkRun = context.payload.check_run;
@@ -175,9 +192,14 @@ export class CheckRunHandler extends BaseHandler {
           }
           
           const notificationData = {
-            subject: this.formatCheckRunSubject(checkRunSummary, checkRun.name),
+            subject: this.formatCheckRunSubject(checkRunSummary, checkRun.name, pr.number),
             description: this.formatCheckRunSummaryDescription(checkRunSummary, checkRun),
-            detailsUrl: fullPR.data.html_url // Link to PR instead of individual check run
+            detailsUrl: fullPR.data.html_url, // Link to PR instead of individual check run
+            statusInfo: {
+              status: checkRunSummary.allCompleted 
+                ? (checkRunSummary.failed > 0 ? 'CHECKS FAILED' : 'CHECKS PASSED')
+                : 'CHECKS IN PROGRESS'
+            }
           };
 
           // Create a modified context that includes complete PR information
@@ -201,6 +223,7 @@ export class CheckRunHandler extends BaseHandler {
           // Check if successful checks made the PR ready to merge
           if (checkRun.conclusion === 'success') {
             try {
+              Logger.info(`✅ Check "${checkRun.name}" succeeded for PR #${pr.number} - checking mergeable state`);
               // Import PullRequestHandler to access the ready-to-merge method
               const { PullRequestHandler } = await import('./pullRequestHandler.js');
               const prHandler = new PullRequestHandler(this.notificationService);
@@ -321,18 +344,21 @@ export class CheckRunHandler extends BaseHandler {
   /**
    * Format subject line for check run summary
    */
-  formatCheckRunSubject(summary, triggeringCheckName) {
+  formatCheckRunSubject(summary, triggeringCheckName, prNumber = null) {
+    const prPrefix = prNumber ? `PR #${prNumber} - ` : '';
+    
     if (summary.allCompleted) {
-      if (summary.failed > 0) {
-        return `❌ ${summary.failed} check${summary.failed > 1 ? 's' : ''} failed, ${summary.passed} passed`;
+      if (summary.failed > 0 && summary.passed > 0) {
+        return `${prPrefix}Checks: ${summary.failed} failed, ${summary.passed} passed`;
+      } else if (summary.failed > 0) {
+        return `${prPrefix}Checks: ${summary.failed} failed`;
       } else if (summary.passed > 0) {
-        return `✅ All ${summary.passed} check${summary.passed > 1 ? 's' : ''} passed`;
+        return `${prPrefix}Checks: ${summary.passed} passed`;
       } else {
-        return `⚪ All checks completed`;
+        return `${prPrefix}Checks: completed`;
       }
     } else {
-      const status = summary.failed > 0 ? '❌' : summary.passed > 0 ? '🟡' : '🔄';
-      return `${status} ${triggeringCheckName} completed (${summary.inProgress} still running)`;
+      return `${prPrefix}Checks: ${triggeringCheckName} completed (${summary.inProgress} still running)`;
     }
   }
 
@@ -340,55 +366,100 @@ export class CheckRunHandler extends BaseHandler {
    * Format comprehensive description with all check statuses
    */
   formatCheckRunSummaryDescription(summary, currentCheckRun) {
-    let description = `**Check Run Summary**\\n\\n`;
-    
-    // Add current check run details if it has output
-    if (currentCheckRun.output?.summary) {
-      description += `**${currentCheckRun.name}:** ${currentCheckRun.output.summary}\\n\\n`;
-    }
-
-    // Overall status
+    // Simple summary since detailed info is in the table
     if (summary.allCompleted) {
-      description += `🎯 **All checks completed**\\n`;
+      if (summary.failed > 0) {
+        return `${summary.failed} check${summary.failed > 1 ? 's' : ''} failed, ${summary.passed} passed`;
+      } else if (summary.passed > 0) {
+        return `All ${summary.passed} check${summary.passed > 1 ? 's' : ''} passed successfully`;
+      } else {
+        return `All checks completed`;
+      }
     } else {
-      description += `🔄 **${summary.inProgress} check${summary.inProgress > 1 ? 's' : ''} still running**\\n`;
+      return `${currentCheckRun.name} completed - ${summary.inProgress} check${summary.inProgress > 1 ? 's' : ''} still running`;
+    }
+  }
+
+  /**
+   * Handle check suite completion events
+   * @param {Object} context - GitHub webhook context
+   * @param {string} action - Event action (completed)
+   * @returns {Promise<Object>} Result object with success status
+   */
+  async handleCheckSuite(context, action) {
+    const checkSuite = context.payload.check_suite;
+    if (!checkSuite) {
+      Logger.error('No check_suite data found in payload');
+      return { success: false, error: 'Missing check_suite data' };
     }
 
-    description += `\\n**Status Overview:**\\n`;
-    description += `• ✅ Passed: ${summary.passed}\\n`;
-    description += `• ❌ Failed: ${summary.failed}\\n`;
-    if (summary.skipped > 0) {
-      description += `• ⚪ Skipped: ${summary.skipped}\\n`;
-    }
-    if (summary.inProgress > 0) {
-      description += `• 🔄 In Progress: ${summary.inProgress}\\n`;
+    Logger.info(`🏁 CHECK SUITE ${action.toUpperCase()}: ${checkSuite.app?.name || 'Unknown App'} (ID: ${checkSuite.id})`);
+    Logger.debug(`Suite Status: ${checkSuite.status}, Conclusion: ${checkSuite.conclusion}`);
+
+    if (action !== 'completed') {
+      Logger.debug(`Ignoring check_suite.${action} - only handling completed suites`);
+      return { success: true, reason: 'non_completed_suite' };
     }
 
-    // List failed checks with details
-    if (summary.failedChecks.length > 0) {
-      description += `\\n**❌ Failed Checks (${summary.failedChecks.length}):**\\n`;
-      summary.failedChecks.forEach(check => {
-        description += `• **${check.name}** (${check.conclusion})\\n`;
-      });
-    }
+    // When a check suite completes, check if any associated PRs became ready to merge
+    try {
+      const prs = checkSuite.pull_requests || [];
+      
+      if (prs.length === 0) {
+        Logger.debug('No pull requests associated with this check suite');
+        return { success: true, reason: 'no_associated_prs' };
+      }
 
-    // List passed checks - always show individual names
-    if (summary.passedChecks.length > 0) {
-      description += `\\n**✅ Passed Checks (${summary.passedChecks.length}):**\\n`;
-      summary.passedChecks.forEach(check => {
-        description += `• **${check.name}**\\n`;
-      });
-    }
+      Logger.info(`Check suite completion affects ${prs.length} PR(s)`);
+      
+      const results = [];
+      for (const pr of prs) {
+        try {
+          Logger.debug(`Checking if PR #${pr.number} became ready to merge after check suite completion`);
+          
+          // Create PR context for the ready-to-merge check
+          const prContext = {
+            ...context,
+            payload: {
+              ...context.payload,
+              repository: context.payload.repository
+            }
+          };
 
-    // List in-progress checks
-    if (summary.inProgressChecks.length > 0) {
-      description += `\\n**🔄 Still Running (${summary.inProgressChecks.length}):**\\n`;
-      summary.inProgressChecks.forEach(check => {
-        description += `• **${check.name}** (${check.status})\\n`;
-      });
-    }
+          Logger.info(`🏁 Check suite completed for PR #${pr.number} - checking mergeable state`);
+          // Import PullRequestHandler to access the ready-to-merge method
+          const { PullRequestHandler } = await import('./pullRequestHandler.js');
+          const prHandler = new PullRequestHandler(this.notificationService);
+          
+          const result = await prHandler.checkAndNotifyReadyToMerge(prContext, pr, 'check_suite_completed');
+          results.push({ prNumber: pr.number, result });
+          
+        } catch (error) {
+          Logger.error(`Error checking PR #${pr.number} ready-to-merge status after check suite completion`, error);
+          results.push({ prNumber: pr.number, result: { success: false, error: error.message } });
+        }
+      }
 
-    return description;
+      const successCount = results.filter(r => r.result.success).length;
+      Logger.info(`Check suite ready-to-merge notifications: ${successCount}/${results.length} successful`);
+
+      return {
+        success: true,
+        reason: 'check_suite_processed',
+        processedPRs: results.length,
+        successfulNotifications: successCount,
+        checkSuite: {
+          id: checkSuite.id,
+          app: checkSuite.app?.name,
+          status: checkSuite.status,
+          conclusion: checkSuite.conclusion
+        }
+      };
+
+    } catch (error) {
+      Logger.error('Error processing check suite completion for ready-to-merge notifications', error);
+      return { success: false, error: error.message };
+    }
   }
 
 

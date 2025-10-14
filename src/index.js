@@ -61,6 +61,7 @@ class AppContainer {
     EventHandlerFactory.register('pull_request', PullRequestHandler);
     EventHandlerFactory.register('pull_request_review', PullRequestHandler);
     EventHandlerFactory.register('check_run', CheckRunHandler);
+    EventHandlerFactory.register('check_suite', CheckRunHandler);
     EventHandlerFactory.register('deployment', DeploymentHandler);
     EventHandlerFactory.register('deployment_status', DeploymentHandler);
     // Additional handlers will be registered here as they're created
@@ -156,6 +157,9 @@ class NotificationApp {
         // Check Run Events  
     this.app.on("check_run.completed", (context) => this.handleEvent(context, 'check_run', 'completed'));
     // this.app.on("check_run.created", (context) => this.handleEvent(context, 'check_run', 'created'));
+    
+    // Check Suite Events
+    this.app.on("check_suite.completed", (context) => this.handleEvent(context, 'check_suite', 'completed'));
     
     // Pull Request Review Events
     this.app.on("pull_request_review.submitted", (context) => this.handleEvent(context, 'pull_request_review', 'submitted'));

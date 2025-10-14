@@ -1,7 +1,7 @@
 /**
  * @fileoverview Core Notification Service
  * @description Main orchestration service that coordinates the entire notification process.
- * Handles event processing, recipient determination, email generation, and workflow tracking.
+ * Handles event processing, recipient determination, and email generation.
  * Acts as the central coordinator between GitHub events and email notifications.
  * 
  * @author Jürgen Efeish
@@ -9,7 +9,6 @@
  * @module NotificationService
  * 
  * @requires Logger - Logging utility
- * @requires WorkflowTracker - Workflow tracking and debugging
  * @requires NotificationValidator - Event validation logic
  * @requires StatusFormatter - Status formatting utilities
  * @requires EmailTemplate - Email template generation
@@ -32,15 +31,6 @@
  *   }
  * );
  * 
- * @example
- * // Send commit-related notification
- * const result = await notificationService.sendCommitNotification(
- *   context,
- *   'check_run',
- *   'completed',
- *   commitSha,
- *   notificationData
- * );
  */
 
 import { Logger } from '../utils/logger.js';
@@ -67,10 +57,10 @@ export class NotificationService {
     try {
       Logger.info(`Processing ${eventType}.${action} for PR notification`);
       
-      // Validate event should be processed
-      if (!NotificationValidator.shouldProcessEvent(eventType, action)) {
-        Logger.debug(`Event ${eventType}.${action} not enabled or below priority threshold`);
-        return { success: false, reason: 'Event not enabled or below priority threshold' };
+      // Check if notification should be sent (separate from event processing)
+      if (!NotificationValidator.shouldSendNotification(eventType, action)) {
+        Logger.debug(`Notification for ${eventType}.${action} is disabled`);
+        return { success: false, reason: 'Notification disabled' };
       }
 
       // Validate context
@@ -117,52 +107,6 @@ export class NotificationService {
   }
 
   /**
-   * Send notifications for commit-related events (check runs, etc.)
-   */
-  async sendCommitNotification(context, eventType, action, commitSha, data) {
-    try {
-      Logger.info(`Processing ${eventType}.${action} for commit ${commitSha}`);
-      
-      // Find associated pull requests
-      const prResult = await this.githubService.getPullRequestsForCommit(context, commitSha);
-      
-      if (!prResult.success || prResult.pullRequests.length === 0) {
-        Logger.debug(`No pull requests found for commit ${commitSha}`);
-        return { success: false, reason: 'No associated pull requests found' };
-      }
-
-      Logger.debug(`Found ${prResult.pullRequests.length} associated PR(s) for commit ${commitSha}`);
-      
-      const results = [];
-      
-      // Process each pull request
-      for (const pr of prResult.pullRequests) {
-        const prResult = await this.sendPRNotification(context, eventType, action, {
-          ...data,
-          pullRequest: pr
-        });
-        
-        results.push({ pr: pr.number, ...prResult });
-      }
-      
-      const successCount = results.filter(r => r.success).length;
-      Logger.info(`Commit ${commitSha} notifications: ${successCount}/${results.length} successful`);
-      
-      return {
-        success: results.some(r => r.success),
-        results
-      };
-      
-    } catch (error) {
-      Logger.error(`Failed to send commit notification for ${eventType}.${action}`, error);
-      return {
-        success: false,
-        error: error.message
-      };
-    }
-  }
-
-  /**
    * Determine email recipients for the notification
    * Always prioritizes PR owner/creator first, then adds additional recipients
    */
@@ -184,22 +128,28 @@ export class NotificationService {
       });
     }
     
-    // Add additional recipients
-    if (customRecipients && customRecipients.length > 0) {
-      // Add custom recipients, avoiding duplicates
-      const uniqueCustom = customRecipients.filter(email => !recipients.includes(email));
-      recipients.push(...uniqueCustom);
-      Logger.debug(`Added ${uniqueCustom.length} custom recipients`);
+    // Add additional recipients (only if enabled via environment flag)
+    const includeAdditionalRecipients = AppConfig.includeAdditionalRecipients();
+    
+    if (includeAdditionalRecipients) {
+      if (customRecipients && customRecipients.length > 0) {
+        // Add custom recipients, avoiding duplicates
+        const uniqueCustom = customRecipients.filter(email => !recipients.includes(email));
+        recipients.push(...uniqueCustom);
+        Logger.debug(`Added ${uniqueCustom.length} custom recipients`);
+      } else {
+        // Add default additional recipients (assignees, reviewers, configured)
+        const prRecipients = await this.githubService.getAdditionalPRRecipients(context, pr, prCreator);
+        const configuredRecipients = await this.getConfiguredAdditionalRecipients(context);
+        
+        const allAdditional = [...prRecipients.emails, ...configuredRecipients.emails];
+        const uniqueAdditional = allAdditional.filter(email => !recipients.includes(email));
+        
+        recipients.push(...uniqueAdditional);
+        Logger.debug(`Added ${uniqueAdditional.length} additional recipients (${prRecipients.emails.length} from PR, ${configuredRecipients.emails.length} from config)`);
+      }
     } else {
-      // Add default additional recipients (assignees, reviewers, configured)
-      const prRecipients = await this.githubService.getAdditionalPRRecipients(context, pr, prCreator);
-      const configuredRecipients = await this.getConfiguredAdditionalRecipients(context);
-      
-      const allAdditional = [...prRecipients.emails, ...configuredRecipients.emails];
-      const uniqueAdditional = allAdditional.filter(email => !recipients.includes(email));
-      
-      recipients.push(...uniqueAdditional);
-      Logger.debug(`Added ${uniqueAdditional.length} additional recipients (${prRecipients.emails.length} from PR, ${configuredRecipients.emails.length} from config)`);
+      Logger.debug('Additional recipients disabled via NOTIFY_ADDITIONAL_RECIPIENTS flag - only notifying PR owner');
     }
     
     return { 
@@ -285,7 +235,65 @@ export class NotificationService {
     );
   }
 
+  /**
+   * Send ready-to-merge notification - bypasses regular event processing checks
+   * This is for cross-event analysis notifications that should be controlled independently
+   * @param {Object} context - GitHub context
+   * @param {Object} data - Notification data
+   * @returns {Promise<Object>} Result object
+   */
+  async sendReadyToMergeNotification(context, data) {
+    try {
+      Logger.info(`Processing ready-to-merge notification`);
+      
+      // Check if ready-to-merge notifications are enabled
+      if (!NotificationValidator.shouldSendNotification('pull_request', 'ready_to_merge')) {
+        Logger.debug(`Ready-to-merge notifications are disabled`);
+        return { success: false, reason: 'Ready-to-merge notifications disabled' };
+      }
 
+      // Validate context
+      const contextValidation = this.githubService.validateContext(context);
+      if (!contextValidation.valid) {
+        throw new Error(`Invalid context: ${contextValidation.errors.join(', ')}`);
+      }
+
+      // Extract PR and repository information
+      const pr = context.payload.pull_request;
+      const repository = this.githubService.getRepositoryInfo(context);
+      
+      if (!pr) {
+        throw new Error('No pull request found in payload');
+      }
+
+      // Determine recipients (PR owner + additional)
+      const recipients = await this.determineRecipients(context, pr, null);
+      
+      if (recipients.emails.length === 0) {
+        Logger.warn(`No email recipients found for ready-to-merge PR #${pr.number}`);
+        return { success: false, reason: 'No email recipients found' };
+      }
+
+      // Generate and send email
+      const emailData = this.generateEmailContent(data, repository, pr, 'pull_request', 'ready_to_merge');
+      const sendResult = await this.sendNotifications(recipients.emails, emailData, 'pull_request', 'ready_to_merge');
+      
+      Logger.info(`Ready-to-merge notification for PR #${pr.number} sent to ${recipients.emails.length} recipient(s): ${sendResult.success ? 'SUCCESS' : 'FAILED'}`);
+      
+      return {
+        success: sendResult.success,
+        summary: sendResult.summary,
+        recipients: recipients.emails
+      };
+      
+    } catch (error) {
+      Logger.error(`Failed to send ready-to-merge notification`, error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
 
   /**
    * Get service health status
@@ -296,10 +304,7 @@ export class NotificationService {
     
     return {
       email: emailConfig,
-      enabledEvents: appConfig,
-      configuration: {
-        debugWorkflow: AppConfig.notifications.debugWorkflow
-      }
+      enabledEvents: appConfig
     };
   }
 }

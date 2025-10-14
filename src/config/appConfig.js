@@ -15,7 +15,7 @@
  * 
  * @example
  * // Check if event is enabled
- * const isEnabled = AppConfig.isEventEnabled('pull_request', 'opened');
+ * const isEnabled = AppConfig.isNotificationEnabled('pull_request', 'opened');
  * 
  * @example
  * // Validate configuration
@@ -68,7 +68,6 @@ export class AppConfig {
    */
   static get notifications() {
     return {
-      debugWorkflow: process.env.DEBUG_WORKFLOW_STEPS === 'true',
       // Additional recipients configuration
       additionalRecipients: this.getAdditionalRecipients()
     };
@@ -119,7 +118,7 @@ export class AppConfig {
    * @param {string|null} [action=null] - The specific action (e.g., 'opened')
    * @returns {boolean} True if notifications should be sent
    */
-  static isEventEnabled(eventType, action = null) {
+  static isNotificationEnabled(eventType, action = null) {
     // PR lifecycle events: opened, closed, reopened
     if (eventType === 'pull_request' && ['opened', 'closed', 'reopened'].includes(action)) {
       return process.env.NOTIFY_PR_LIFECYCLE === 'true';
@@ -160,6 +159,17 @@ export class AppConfig {
     // Default: disabled for unrecognized events
     Logger.debug(`Event ${eventType}.${action} not configured - defaulting to disabled`);
     return false;
+  }
+
+  /**
+   * @static
+   * @memberof AppConfig
+   * @description Check if additional recipients should be included in notifications
+   * 
+   * @returns {boolean} True if additional recipients (assignees, reviewers, configured) should be notified
+   */
+  static includeAdditionalRecipients() {
+    return process.env.NOTIFY_ADDITIONAL_RECIPIENTS === 'true';
   }
 
   /**

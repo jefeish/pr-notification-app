@@ -162,7 +162,17 @@ export class PullRequestHandler extends BaseHandler {
       statusInfo
     );
     
-    return await this.notificationService.sendPRNotification(context, 'pull_request', 'synchronize', data);
+    const result = await this.notificationService.sendPRNotification(context, 'pull_request', 'synchronize', data);
+
+    // Check if new commits made the PR ready to merge
+    try {
+      Logger.info(`🔄 New commits pushed to PR #${pr.number} - checking mergeable state`);
+      await this.checkAndNotifyReadyToMerge(context, pr, 'synchronize');
+    } catch (error) {
+      Logger.warn(`Failed to check ready-to-merge status after synchronize: ${error.message}`);
+    }
+
+    return result;
   }
 
   async handleReadyForReview(context, pr) {
@@ -177,7 +187,17 @@ export class PullRequestHandler extends BaseHandler {
       statusInfo
     );
     
-    return await this.notificationService.sendPRNotification(context, 'pull_request', 'ready_for_review', data);
+    const result = await this.notificationService.sendPRNotification(context, 'pull_request', 'ready_for_review', data);
+
+    // Check if the PR is ready to merge now that it's ready for review
+    try {
+      Logger.info(`👀 PR #${pr.number} marked as ready for review - checking mergeable state`);
+      await this.checkAndNotifyReadyToMerge(context, pr, 'ready_for_review');
+    } catch (error) {
+      Logger.warn(`Failed to check ready-to-merge status after ready_for_review: ${error.message}`);
+    }
+
+    return result;
   }
 
   async handleReviewRequested(context, pr) {
@@ -224,6 +244,7 @@ export class PullRequestHandler extends BaseHandler {
     // Check if this review made the PR ready to merge (especially for approvals)
     if (review.state === 'APPROVED') {
       try {
+        Logger.info(`📝 Review APPROVED for PR #${pr.number} by ${review.user.login} - checking mergeable state`);
         await this.checkAndNotifyReadyToMerge(context, pr, 'review_approved');
       } catch (error) {
         Logger.warn(`Failed to check ready-to-merge status after approval: ${error.message}`);
@@ -235,57 +256,90 @@ export class PullRequestHandler extends BaseHandler {
 
   /**
    * Check if PR became ready to merge after a review or check completion
+   * Uses the straightforward mergeable_state from GitHub API
    * @param {Object} context - GitHub context
-   * @param {Object} pr - Pull request object
+   * @param {Object} pr - Pull request object (may need fresh data)
    * @param {string} triggerEvent - What triggered this check (review, check_run, etc.)
    * @returns {Promise<Object>} Result object
    */
   async checkAndNotifyReadyToMerge(context, pr, triggerEvent) {
-    Logger.debug(`Checking if PR #${pr.number} is ready to merge after ${triggerEvent}`);
+    Logger.info(`🎯 MERGEABLE STATE CHECK TRIGGERED: PR #${pr.number} after ${triggerEvent}`);
     
     try {
-      const githubService = this.notificationService.githubService;
-      const readinessResult = await githubService.checkPRReadyToMerge(context, pr.number);
+      // Get fresh PR data to ensure we have the latest mergeable_state
+      const { data: freshPR } = await context.octokit.pulls.get({
+        owner: context.payload.repository.owner.login,
+        repo: context.payload.repository.name,
+        pull_number: pr.number
+      });
+
+      const mergeableState = freshPR.mergeable_state;
       
-      if (!readinessResult.success) {
-        Logger.warn(`Failed to check PR #${pr.number} readiness: ${readinessResult.error}`);
-        return { success: false, reason: 'readiness_check_failed' };
+      // Enhanced logging for mergeable_state detection
+      Logger.info(`🔍 PR #${pr.number} MERGEABLE STATE DETECTED: "${mergeableState}" (triggered by: ${triggerEvent})`);
+      Logger.info(`📊 PR #${pr.number} Details: mergeable=${freshPR.mergeable}, draft=${freshPR.draft}, state=${freshPR.state}`);
+
+      // Only notify for 'clean' and 'unstable' states - all others are noise
+      let isReady = false;
+      let statusEmoji = '❓';
+      let statusText = '';
+      let statusDescription = '';
+
+      switch (mergeableState) {
+        case 'clean':
+          isReady = true;
+          statusEmoji = '🚀';
+          statusText = 'READY TO MERGE';
+          statusDescription = 'Mergeable and all checks passing';
+          Logger.info(`✅ PR #${pr.number} is READY TO MERGE (clean state) - will notify`);
+          break;
+        case 'unstable':
+          isReady = true; // Notify for unstable too - mergeable but with failing checks
+          statusEmoji = '⚠️';
+          statusText = 'READY TO MERGE (UNSTABLE)';
+          statusDescription = 'Mergeable but some checks are not passing';
+          Logger.info(`⚠️  PR #${pr.number} is READY TO MERGE (unstable state) - will notify`);
+          break;
+        default:
+          // All other states (dirty, blocked, behind, unknown, divergent, has_hooks, etc.)
+          // are not notification-worthy - they're either not ready or still calculating
+          Logger.info(`🚫 PR #${pr.number} mergeable_state '${mergeableState}' - not notification-worthy, skipping`);
+          return { success: true, reason: 'not_notification_worthy', mergeableState };
       }
 
-      if (!readinessResult.ready) {
-        Logger.debug(`PR #${pr.number} not ready to merge: ${readinessResult.details.summary}`);
-        return { success: true, reason: 'not_ready_to_merge' };
-      }
+      // At this point, we have a notification-worthy state
 
       // Check if we already notified about readiness recently (avoid spam)
       const eventKey = `ready_to_merge_${pr.number}`;
       if (this.isRecentEvent(eventKey)) {
-        Logger.debug(`Already notified about PR #${pr.number} readiness recently`);
+        Logger.info(`🔄 PR #${pr.number} ready-to-merge notification skipped - already notified recently (deduplication)`);
         return { success: true, reason: 'already_notified_recently' };
       }
 
       // PR is ready to merge - send notification!
-      Logger.info(`🎉 PR #${pr.number} is now ready to merge!`);
+      Logger.info(`🎉 SENDING READY-TO-MERGE NOTIFICATION: PR #${pr.number} (${statusText}) triggered by ${triggerEvent}`);
       
-      const details = readinessResult.details;
       const statusInfo = {
-        status: 'READY TO MERGE',
-        emoji: '🚀',
+        status: statusText,
+        emoji: statusEmoji,
         color: '#28a745'
       };
 
       const data = this.createNotificationData(
-        `🚀 PR #${pr.number} Ready to Merge: ${pr.title}`,
-        `Your pull request has all approvals and checks are passing!`,
+        `PR #${pr.number} Ready to Merge: ${pr.title}`,
+        statusDescription,
         pr.html_url,
         statusInfo,
-        `✅ ${details.details.approvalCount} approval(s)\n✅ ${details.details.passedCheckRuns} checks passed\n🎯 Status: ${details.summary}`
+        `🎯 Mergeable State: ${mergeableState}\n📝 ${statusDescription}\n🔗 Ready to merge and deploy!`
       );
 
       // Track this notification to avoid duplicates
       this.trackRecentEvent(eventKey);
 
-      return await this.notificationService.sendPRNotification(context, 'pull_request', 'ready_to_merge', data);
+      const result = await this.notificationService.sendReadyToMergeNotification(context, data);
+      
+      Logger.info(`📧 Ready-to-merge notification result for PR #${pr.number}: ${result.success ? 'SUCCESS' : 'FAILED'}`);
+      return result;
 
     } catch (error) {
       Logger.error(`Error checking PR #${pr.number} ready to merge status`, error);

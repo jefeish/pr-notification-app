@@ -184,19 +184,24 @@ NOTIFY_PR_REVIEWS=true          # review submitted, dismissed
 NOTIFY_PR_COMMENTS=true         # comments on PRs
 NOTIFY_CHECK_RESULTS=true       # CI/CD check completions
 NOTIFY_PR_UPDATES=false         # synchronize (new commits), edits
+NOTIFY_ADDITIONAL_RECIPIENTS=true  # include assignees, reviewers, and configured additional recipients
 ```
 
 **What Each Category Includes:**
+
 - **PR_LIFECYCLE**: When PRs are opened, closed, or reopened
 - **PR_REVIEWS**: When code reviews are submitted or dismissed  
 - **PR_COMMENTS**: Comments added to pull requests
 - **CHECK_RESULTS**: CI/CD pipeline completions (success/failure)
 - **PR_UPDATES**: New commits pushed, PR edits, ready for review
+- **ADDITIONAL_RECIPIENTS**: Include assignees, reviewers, and configured users (when false, only PR owner is notified)
 
 **Quick Setup Recommendations:**
+
 - **Essential notifications**: Enable LIFECYCLE and REVIEWS only
 - **Full monitoring**: Enable all categories except PR_UPDATES
 - **Minimal noise**: Disable COMMENTS and PR_UPDATES
+- **PR owner only**: Set ADDITIONAL_RECIPIENTS=false to notify only PR creators
 - **Comprehensive**: Enable all events you're interested in
 
 ## Docker

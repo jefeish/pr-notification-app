@@ -58,13 +58,25 @@ The app uses logical categories instead of individual event toggles for easier c
 **Recommendation**: Keep enabled to track deployment results
 
 ### NOTIFY_READY_TO_MERGE
+
 **Controls**: Ready-to-merge detection and notifications
-- Triggered when PR has all required approvals AND all checks pass
-- Notifies PR owner their PR is ready to be merged
-- Includes approval count and check status summary
+
+- Uses GitHub's `mergeable_state` to determine when PR is ready
+- Only notifies for states that indicate the PR can actually be merged
+- Avoids notification noise from blocked, conflicted, or out-of-date PRs
+- Focuses on actionable merge opportunities
 
 **Default**: `true`  
-**Recommendation**: Keep enabled to notify when PRs are ready for merge
+**Recommendation**: Keep enabled for efficient merge notifications
+
+**States that trigger notification**:
+
+- `clean` - Mergeable and all checks passing ✅
+- `unstable` - Mergeable but some checks failing ⚠️
+
+**All other states are ignored** (no notifications sent):
+
+- `blocked`, `dirty`, `behind`, `unknown`, `divergent`, `has_hooks`, etc.
 
 ## Configuration Examples
 

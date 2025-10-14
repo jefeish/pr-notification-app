@@ -60,9 +60,9 @@ export class EmailService {
   }
 
   /**
-   * Create email transporter
+   * Create email transport
    */
-  createTransporter() {
+  createTransport() {
     const config = AppConfig.email;
     
     if (!config.user || !config.pass) {
@@ -71,7 +71,7 @@ export class EmailService {
     }
 
     try {
-      this.transporter = nodemailer.createTransporter({
+      this.transporter = nodemailer.createTransport({
         host: config.host,
         port: config.port,
         secure: config.secure,
@@ -94,7 +94,7 @@ export class EmailService {
    */
   getTransporter() {
     if (!this.transporter) {
-      this.transporter = this.createTransporter();
+      this.transporter = this.createTransport();
     }
     return this.transporter;
   }

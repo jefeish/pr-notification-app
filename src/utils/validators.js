@@ -46,17 +46,12 @@ export class NotificationValidator {
   }
 
   /**
-   * Validate if event is enabled and should be processed
+   * Check if notification should be sent based on NOTIFY_* environment variables
+   * This is separate from event processing - events are always processed for analysis,
+   * but notifications are only sent if explicitly enabled
    */
-  static shouldProcessEvent(eventType, action = null) {
-    // Check if event is enabled
-    if (!AppConfig.isEventEnabled(eventType, action)) {
-      Logger.debug(`Event ${eventType}${action ? `.${action}` : ''} is disabled`);
-      return false;
-    }
-
-    // No priority checking anymore - all enabled events are processed
-    return true;
+  static shouldSendNotification(eventType, action) {
+    return AppConfig.isNotificationEnabled(eventType, action);
   }
 }
 

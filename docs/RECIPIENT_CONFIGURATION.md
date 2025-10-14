@@ -9,6 +9,27 @@ The PR notification app **always prioritizes the PR owner/creator** as the prima
 
 ## Configuration Options
 
+### Controlling Additional Recipients
+
+You can control whether additional recipients are included in notifications:
+
+```bash
+# Enable/disable additional recipients (default: true)
+NOTIFY_ADDITIONAL_RECIPIENTS=true   # Include assignees, reviewers, and configured recipients
+NOTIFY_ADDITIONAL_RECIPIENTS=false  # Only notify PR owner/creator
+```
+
+**When `NOTIFY_ADDITIONAL_RECIPIENTS=false`:**
+
+- Only the PR owner/creator receives notifications
+- No assignees, reviewers, or configured additional recipients are included
+- Custom recipients passed programmatically are still ignored
+
+**When `NOTIFY_ADDITIONAL_RECIPIENTS=true` (default):**
+
+- PR owner/creator receives notifications (always first priority)
+- Additional recipients are included based on configuration below
+
 ### Environment Variables
 
 You can configure additional recipients using these environment variables:

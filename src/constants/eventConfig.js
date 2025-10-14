@@ -10,8 +10,8 @@
  * @module EventConfig
  * 
  * @example
- * // Check event priority
- * const isHighPriority = EVENT_PRIORITIES.HIGH.includes('pull_request.opened');
+ * // Check if event is supported
+ * const isSupported = SUPPORTED_EVENTS.includes('pull_request.opened');
  * 
  * @example
  * // Get status formatting
@@ -24,50 +24,27 @@
  */
 
 /**
- * @constant {Object} EVENT_PRIORITIES
- * @description Event priority mappings organized by priority level.
- * Used to determine notification importance and filtering.
- * 
- * @property {string[]} HIGH - High priority events that require immediate attention
- * @property {string[]} MEDIUM - Medium priority events for regular notifications
- * @property {string[]} LOW - Low priority events for optional notifications
+ * @constant {string[]} SUPPORTED_EVENTS
+ * @description Flat list of all supported GitHub webhook events.
+ * Simple and straightforward - no complex priority levels needed.
  */
-export const EVENT_PRIORITIES = {
-  HIGH: [
-    'check_run.completed',
-    'check_suite.completed', 
-    'pull_request.opened',
-    'pull_request.closed',
-    'pull_request_review.submitted',
-    'pull_request.ready_to_merge',
-    'deployment_status'
-  ],
-  
-  MEDIUM: [
-    'pull_request.ready_for_review',
-    'pull_request.review_requested',
-    'pull_request.synchronize',
-    'status',
-    'push'
-  ],
-  
-  LOW: [
-    'pull_request.edited',
-    'pull_request.reopened',
-    'pull_request_review.dismissed',
-    'pull_request_review_comment.created',
-    'issue_comment.created'
-  ]
-};
-
-/**
- * Priority level mappings
- */
-export const PRIORITY_LEVELS = {
-  low: 1,
-  medium: 2,
-  high: 3
-};
+export const SUPPORTED_EVENTS = [
+  'pull_request.opened',
+  'pull_request.closed',
+  'pull_request.edited',
+  'pull_request.reopened',
+  'pull_request.synchronize',
+  'pull_request.ready_for_review',
+  'pull_request.review_requested',
+  'pull_request.ready_to_merge',
+  'pull_request_review.submitted',
+  'pull_request_review.dismissed',
+  'pull_request_review_comment.created',
+  'check_run.completed',
+  'check_suite.completed',
+  'deployment_status',
+  'issue_comment.created'
+];
 
 /**
  * Status mappings for formatting

@@ -50,7 +50,7 @@ export class EmailTemplate {
       description, 
       detailsUrl, 
       statusInfo,
-      summary 
+      summary
     } = data;
 
     const textContent = this.generateTextContent({
@@ -101,9 +101,6 @@ export class EmailTemplate {
    * Generate HTML email content
    */
   static generateHtmlContent({ subject, repository, pullRequest, event, description, summary, detailsUrl, statusInfo }) {
-    const backgroundColor = statusInfo?.color || '#0366d6';
-    const emoji = statusInfo?.emoji || '📢';
-
     return `
 <!DOCTYPE html>
 <html>
@@ -116,33 +113,13 @@ export class EmailTemplate {
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="header" style="background-color: ${backgroundColor};">
-      <div class="status">${emoji} ${event}</div>
-    </div>
+  <div class="container">    
     <div class="content">
-      <h3 class="repository">Repository: ${repository}</h3>
-      ${pullRequest ? `<h4 class="pr-title">Pull Request: #${pullRequest.number} - ${pullRequest.title}</h4>` : ''}
+      <p><strong>${repository}</strong></p>
+      ${pullRequest ? `<p><a href="${pullRequest.html_url}">Pull Request #${pullRequest.number}: ${pullRequest.title}</a></p>` : ''}
       
-      <div class="details">
-        ${description ? `<p><strong>Description:</strong> ${this.escapeHtml(description)}</p>` : ''}
-        ${statusInfo?.status ? `<p><strong>Status:</strong> ${statusInfo.status}</p>` : ''}
-      </div>
-
-      ${summary ? `
-        <div class="summary">
-          <h4>Summary:</h4>
-          <p>${this.escapeHtml(summary)}</p>
-        </div>
-      ` : ''}
-
-      <div class="buttons">
-        ${detailsUrl ? `<a href="${detailsUrl}" class="button">View Details</a>` : ''}
-        ${pullRequest ? `<a href="${pullRequest.html_url}" class="button primary">View Pull Request</a>` : ''}
-      </div>
-    </div>
-    <div class="footer">
-      <p>This notification was sent by PR Notification App</p>
+      ${statusInfo?.status ? `<p>Status: ${statusInfo.status}</p>` : ''}
+      ${description ? `<p>Description: ${this.escapeHtml(description)}</p>` : ''}
     </div>
   </div>
 </body>
@@ -155,110 +132,35 @@ export class EmailTemplate {
   static getEmailStyles() {
     return `
       body { 
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+        font-family: Arial, sans-serif; 
         margin: 0; 
         padding: 20px; 
-        background-color: #f6f8fa;
-        line-height: 1.5;
+        background-color: #ffffff;
+        line-height: 1.4;
+        color: #333;
       }
       .container { 
-        max-width: 600px; 
-        margin: 0 auto; 
-        background-color: white;
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        overflow: hidden;
-      }
-      .header { 
-        color: white; 
-        padding: 20px; 
-        text-align: center;
-      }
-      .status { 
-        font-size: 24px; 
-        font-weight: bold; 
-        margin: 0;
+        max-width: 500px; 
       }
       .content { 
-        padding: 24px; 
+        padding: 0; 
       }
-      .repository {
-        color: #24292e;
-        margin-top: 0;
-        margin-bottom: 16px;
-      }
-      .pr-title {
+      h2 {
         color: #0366d6;
         margin-bottom: 20px;
+        font-size: 18px;
+        text-align: left;
       }
-      .details { 
-        margin: 20px 0; 
-      }
-      .details p {
-        margin: 8px 0;
-        color: #586069;
-      }
-      .summary { 
-        background-color: #f6f8fa; 
-        padding: 16px; 
-        border-radius: 6px; 
-        margin: 20px 0;
-        border-left: 4px solid #0366d6;
-      }
-      .summary h4 {
-        margin-top: 0;
-        color: #24292e;
-      }
-      .buttons { 
-        margin-top: 24px; 
-        text-align: center;
-      }
-      .button { 
-        display: inline-block; 
-        padding: 12px 24px; 
-        background-color: #fafbfc; 
-        color: #24292e; 
-        text-decoration: none; 
-        border-radius: 6px; 
-        margin: 8px; 
-        border: 1px solid #d1d5da;
-        font-weight: 500;
-        transition: background-color 0.2s;
-      }
-      .button:hover {
-        background-color: #f3f4f6;
-      }
-      .button.primary {
-        background-color: #0366d6;
-        color: white;
-        border-color: #0366d6;
-      }
-      .button.primary:hover {
-        background-color: #0256cc;
-      }
-      .footer {
-        background-color: #f6f8fa;
-        padding: 16px;
-        text-align: center;
-        border-top: 1px solid #e1e4e8;
-      }
-      .footer p {
-        margin: 0;
-        color: #586069;
+      p {
+        margin: 10px 0;
         font-size: 14px;
       }
-      @media (max-width: 600px) {
-        .container {
-          margin: 0;
-          border-radius: 0;
-        }
-        .content {
-          padding: 16px;
-        }
-        .button {
-          display: block;
-          margin: 8px 0;
-        }
+      a {
+        color: #0366d6;
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
       }
     `;
   }
@@ -283,23 +185,22 @@ export class EmailTemplate {
    */
   static generateSubject(eventType, action, data) {
     const { pullRequest, statusInfo, checkRun, commits } = data;
-    const emoji = statusInfo?.emoji || '📢';
     
     const subjectTemplates = {
       'pull_request.opened': () => 
-        `${emoji} New Pull Request #${pullRequest.number}: ${pullRequest.title}`,
+        `New Pull Request #${pullRequest.number}: ${pullRequest.title}`,
       'pull_request.closed': () => 
-        `${emoji} Pull Request ${pullRequest.merged ? 'Merged' : 'Closed'} #${pullRequest.number}: ${pullRequest.title}`,
+        `Pull Request ${pullRequest.merged ? 'Merged' : 'Closed'} #${pullRequest.number}: ${pullRequest.title}`,
       'pull_request.edited': () => 
-        `${emoji} Pull Request Updated #${pullRequest.number}: ${pullRequest.title}`,
+        `Pull Request Updated #${pullRequest.number}: ${pullRequest.title}`,
       'pull_request.synchronize': () => 
-        `${emoji} New commits pushed to PR #${pullRequest.number}: ${pullRequest.title}`,
+        `New commits pushed to PR #${pullRequest.number}: ${pullRequest.title}`,
       'pull_request_review.submitted': () => 
-        `${emoji} Review ${data.review?.state || 'submitted'} for PR #${pullRequest.number}: ${pullRequest.title}`,
+        `Review ${data.review?.state || 'submitted'} for PR #${pullRequest.number}: ${pullRequest.title}`,
       'check_run.completed': () => 
-        `${emoji} Check run ${statusInfo?.status || 'completed'} for PR #${pullRequest.number}`,
+        `Check run ${statusInfo?.status || 'completed'} for PR #${pullRequest.number}`,
       'push': () => 
-        `${emoji} New commits pushed to PR #${pullRequest.number}: ${pullRequest.title}`
+        `New commits pushed to PR #${pullRequest.number}: ${pullRequest.title}`
     };
 
     const eventKey = action ? `${eventType}.${action}` : eventType;
@@ -310,6 +211,6 @@ export class EmailTemplate {
     }
 
     // Fallback generic subject
-    return `${emoji} ${eventType}${action ? `.${action}` : ''} notification${pullRequest ? ` - PR #${pullRequest.number}` : ''}`;
+    return `${eventType}${action ? `.${action}` : ''} notification${pullRequest ? ` - PR #${pullRequest.number}` : ''}`;
   }
 }
