@@ -1,6 +1,6 @@
 # PR Notification App - Architecture Overview
 
-## 1000-Foot View System Architecture
+## High-Level View of System Architecture
 
 This simple diagram shows the main flow and relationships in the PR notification app, focusing on initialization and handler loading.
 
