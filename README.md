@@ -5,9 +5,11 @@
 ## Features
 
 - **PR Owner Priority**: Always prioritizes PR creator/owner as primary recipient
-- **Simple Event Categories**: 5 logical notification categories (no complex individual settings)
+- **Smart Ready-to-Merge Detection**: Automatically notifies when PRs have all approvals and passing checks
+- **Simple Event Categories**: 7 logical notification categories (no complex individual settings)
 - **Review & Comment Tracking**: Notifications for reviews, review comments, and general comments
 - **CI/CD Integration**: Check runs and check suites completion notifications
+- **Deployment Tracking**: Notifications for deployment creation and status updates
 - **Clean Email Content**: Standard HTML email template with no diff snippets
 - **Multiple SMTP Support**: Works with Gmail, Outlook, Yahoo, and custom SMTP servers
 - **Additional Recipients**: Optionally notify additional users beyond PR owner
@@ -27,7 +29,7 @@
 
 2. **Email Provider**: Configure SMTP settings for sending emails
 
-3. **Event Configuration**: Configure 6 notification categories in `.env`
+3. **Event Configuration**: Configure 7 notification categories in `.env`
 
 ### Installation
 

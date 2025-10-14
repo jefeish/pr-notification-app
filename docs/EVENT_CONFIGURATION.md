@@ -57,6 +57,15 @@ The app uses logical categories instead of individual event toggles for easier c
 **Default**: `true`  
 **Recommendation**: Keep enabled to track deployment results
 
+### NOTIFY_READY_TO_MERGE
+**Controls**: Ready-to-merge detection and notifications
+- Triggered when PR has all required approvals AND all checks pass
+- Notifies PR owner their PR is ready to be merged
+- Includes approval count and check status summary
+
+**Default**: `true`  
+**Recommendation**: Keep enabled to notify when PRs are ready for merge
+
 ## Configuration Examples
 
 ### Minimal Setup (Essential notifications only)
@@ -69,6 +78,7 @@ NOTIFY_PR_COMMENTS=false
 NOTIFY_CHECK_RESULTS=false
 NOTIFY_PR_UPDATES=false
 NOTIFY_DEPLOYMENTS=false
+NOTIFY_READY_TO_MERGE=true
 ```
 
 ### Balanced Setup (Recommended)
@@ -81,6 +91,7 @@ NOTIFY_PR_COMMENTS=true
 NOTIFY_CHECK_RESULTS=true
 NOTIFY_PR_UPDATES=false
 NOTIFY_DEPLOYMENTS=true
+NOTIFY_READY_TO_MERGE=true
 ```
 
 ### Maximum Monitoring

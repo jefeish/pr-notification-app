@@ -1,0 +1,27 @@
+{
+  "pull_request": {
+    "number": 123,
+    "title": "Add new feature",
+    "body": "This PR adds a new feature to the application",
+    "html_url": "https://github.com/owner/repo/pull/123",
+    "head": {
+      "sha": "abc123def456789"
+    },
+    "user": {
+      "login": "developer"
+    },
+    "mergeable": true,
+    "mergeable_state": "clean"
+  },
+  "repository": {
+    "name": "example-repo",
+    "full_name": "owner/example-repo",
+    "html_url": "https://github.com/owner/example-repo",
+    "owner": {
+      "login": "owner"
+    }
+  },
+  "sender": {
+    "login": "developer"
+  }
+}

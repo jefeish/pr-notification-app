@@ -39,6 +39,7 @@ export const EVENT_PRIORITIES = {
     'pull_request.opened',
     'pull_request.closed',
     'pull_request_review.submitted',
+    'pull_request.ready_to_merge',
     'deployment_status'
   ],
   
@@ -93,6 +94,7 @@ export const STATUS_MAPPINGS = {
   synchronize: { status: 'UPDATED', emoji: '🔄', color: '#0366d6' },
   ready_for_review: { status: 'READY FOR REVIEW', emoji: '👀', color: '#28a745' },
   review_requested: { status: 'REVIEW REQUESTED', emoji: '👥', color: '#0366d6' },
+  ready_to_merge: { status: 'READY TO MERGE', emoji: '🚀', color: '#28a745' },
   submitted: { status: 'SUBMITTED', emoji: '📝', color: '#0366d6' },
   dismissed: { status: 'DISMISSED', emoji: '🚫', color: '#dc3545' },
   created: { status: 'CREATED', emoji: '💬', color: '#0366d6' },
@@ -111,6 +113,7 @@ export const EVENT_EMOJIS = {
   'pull_request.synchronize': '🔄',
   'pull_request.ready_for_review': '👀',
   'pull_request.review_requested': '👥',
+  'pull_request.ready_to_merge': '🚀',
   'pull_request_review.submitted': '📝',
   'pull_request_review.dismissed': '🚫',
   'pull_request_review_comment.created': '💬',

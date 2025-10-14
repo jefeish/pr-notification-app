@@ -152,6 +152,11 @@ export class AppConfig {
       return process.env.NOTIFY_DEPLOYMENTS === 'true';
     }
     
+    // Ready to merge notifications (special case - not a direct webhook event)
+    if (eventType === 'pull_request' && action === 'ready_to_merge') {
+      return process.env.NOTIFY_READY_TO_MERGE === 'true';
+    }
+    
     // Default: disabled for unrecognized events
     Logger.debug(`Event ${eventType}.${action} not configured - defaulting to disabled`);
     return false;

@@ -440,4 +440,153 @@ export class GitHubService {
       errors
     };
   }
+
+  /**
+   * Check if a pull request is ready to merge
+   * @param {Object} context - GitHub context
+   * @param {number} prNumber - Pull request number
+   * @returns {Promise<Object>} Result with readiness status and details
+   */
+  async checkPRReadyToMerge(context, prNumber) {
+    Logger.debug(`Checking if PR #${prNumber} is ready to merge`);
+    
+    try {
+      // Get detailed PR information
+      const { data: pr } = await context.octokit.pulls.get({
+        owner: context.payload.repository.owner.login,
+        repo: context.payload.repository.name,
+        pull_number: prNumber
+      });
+
+      // Get reviews
+      const { data: reviews } = await context.octokit.pulls.listReviews({
+        owner: context.payload.repository.owner.login,
+        repo: context.payload.repository.name,
+        pull_number: prNumber
+      });
+
+      // Get check runs for the head commit
+      const { data: checkRuns } = await context.octokit.checks.listForRef({
+        owner: context.payload.repository.owner.login,
+        repo: context.payload.repository.name,
+        ref: pr.head.sha
+      });
+
+      // Analyze readiness
+      const readiness = this.analyzePRReadiness(pr, reviews, checkRuns.check_runs);
+      
+      Logger.info(`PR #${prNumber} readiness: ${readiness.ready ? 'READY' : 'NOT READY'} (${readiness.summary})`);
+      
+      return {
+        success: true,
+        ready: readiness.ready,
+        pr: pr,
+        details: readiness
+      };
+
+    } catch (error) {
+      Logger.error(`Error checking PR #${prNumber} readiness`, error);
+      return {
+        success: false,
+        error: error.message,
+        ready: false
+      };
+    }
+  }
+
+  /**
+   * Analyze if a PR is ready to merge based on various criteria
+   * @param {Object} pr - Pull request object
+   * @param {Array} reviews - Array of review objects
+   * @param {Array} checkRuns - Array of check run objects
+   * @returns {Object} Analysis result
+   */
+  analyzePRReadiness(pr, reviews, checkRuns) {
+    const analysis = {
+      ready: false,
+      summary: '',
+      checks: {
+        mergeable: false,
+        hasApprovals: false,
+        checksPass: false,
+        noConflicts: false
+      },
+      details: {
+        mergeableState: pr.mergeable_state,
+        approvalCount: 0,
+        changesRequestedCount: 0,
+        totalCheckRuns: checkRuns.length,
+        passedCheckRuns: 0,
+        failedCheckRuns: 0
+      }
+    };
+
+    // Check 1: Mergeable state
+    analysis.checks.mergeable = pr.mergeable_state === 'clean';
+    analysis.checks.noConflicts = pr.mergeable !== false;
+
+    // Check 2: Review status
+    const latestReviews = this.getLatestReviewsByUser(reviews);
+    for (const review of Object.values(latestReviews)) {
+      if (review.state === 'APPROVED') {
+        analysis.details.approvalCount++;
+      } else if (review.state === 'CHANGES_REQUESTED') {
+        analysis.details.changesRequestedCount++;
+      }
+    }
+    
+    // Consider approved if has at least 1 approval and no pending change requests
+    analysis.checks.hasApprovals = analysis.details.approvalCount > 0 && 
+                                  analysis.details.changesRequestedCount === 0;
+
+    // Check 3: Check runs status
+    for (const checkRun of checkRuns) {
+      if (checkRun.conclusion === 'success') {
+        analysis.details.passedCheckRuns++;
+      } else if (checkRun.conclusion === 'failure' || checkRun.conclusion === 'error') {
+        analysis.details.failedCheckRuns++;
+      }
+    }
+    
+    // Consider checks passed if no failed runs and at least some passed
+    analysis.checks.checksPass = analysis.details.failedCheckRuns === 0 && 
+                                (analysis.details.passedCheckRuns > 0 || checkRuns.length === 0);
+
+    // Overall readiness
+    analysis.ready = analysis.checks.mergeable && 
+                    analysis.checks.hasApprovals && 
+                    analysis.checks.checksPass;
+
+    // Generate summary
+    const issues = [];
+    if (!analysis.checks.mergeable) issues.push('not mergeable');
+    if (!analysis.checks.hasApprovals) issues.push('needs approval');
+    if (!analysis.checks.checksPass) issues.push('checks failing');
+    
+    analysis.summary = issues.length === 0 ? 'ready to merge' : issues.join(', ');
+
+    return analysis;
+  }
+
+  /**
+   * Get the latest review from each user (users can have multiple reviews)
+   * @param {Array} reviews - Array of review objects
+   * @returns {Object} Map of username to latest review
+   */
+  getLatestReviewsByUser(reviews) {
+    const latestReviews = {};
+    
+    // Sort by submitted_at and get the latest review from each user
+    reviews
+      .filter(review => review.state !== 'PENDING') // Exclude pending reviews
+      .sort((a, b) => new Date(b.submitted_at) - new Date(a.submitted_at))
+      .forEach(review => {
+        const username = review.user.login;
+        if (!latestReviews[username]) {
+          latestReviews[username] = review;
+        }
+      });
+
+    return latestReviews;
+  }
 }

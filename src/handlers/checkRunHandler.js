@@ -197,6 +197,18 @@ export class CheckRunHandler extends BaseHandler {
           );
 
           results.push(result);
+
+          // Check if successful checks made the PR ready to merge
+          if (checkRun.conclusion === 'success') {
+            try {
+              // Import PullRequestHandler to access the ready-to-merge method
+              const { PullRequestHandler } = await import('./pullRequestHandler.js');
+              const prHandler = new PullRequestHandler(this.notificationService);
+              await prHandler.checkAndNotifyReadyToMerge(prContext, fullPR.data, 'check_success');
+            } catch (error) {
+              Logger.warn(`Failed to check ready-to-merge status after successful check: ${error.message}`);
+            }
+          }
         } catch (error) {
           Logger.error(`Error processing check run for PR #${pr.number}`, error);
           results.push({ success: false, error: error.message });

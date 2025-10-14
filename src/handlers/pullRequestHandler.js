@@ -219,6 +219,111 @@ export class PullRequestHandler extends BaseHandler {
       review.body || 'No review comments'
     );
     
-    return await this.notificationService.sendPRNotification(context, 'pull_request_review', 'submitted', data);
+    const result = await this.notificationService.sendPRNotification(context, 'pull_request_review', 'submitted', data);
+
+    // Check if this review made the PR ready to merge (especially for approvals)
+    if (review.state === 'APPROVED') {
+      try {
+        await this.checkAndNotifyReadyToMerge(context, pr, 'review_approved');
+      } catch (error) {
+        Logger.warn(`Failed to check ready-to-merge status after approval: ${error.message}`);
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Check if PR became ready to merge after a review or check completion
+   * @param {Object} context - GitHub context
+   * @param {Object} pr - Pull request object
+   * @param {string} triggerEvent - What triggered this check (review, check_run, etc.)
+   * @returns {Promise<Object>} Result object
+   */
+  async checkAndNotifyReadyToMerge(context, pr, triggerEvent) {
+    Logger.debug(`Checking if PR #${pr.number} is ready to merge after ${triggerEvent}`);
+    
+    try {
+      const githubService = this.notificationService.githubService;
+      const readinessResult = await githubService.checkPRReadyToMerge(context, pr.number);
+      
+      if (!readinessResult.success) {
+        Logger.warn(`Failed to check PR #${pr.number} readiness: ${readinessResult.error}`);
+        return { success: false, reason: 'readiness_check_failed' };
+      }
+
+      if (!readinessResult.ready) {
+        Logger.debug(`PR #${pr.number} not ready to merge: ${readinessResult.details.summary}`);
+        return { success: true, reason: 'not_ready_to_merge' };
+      }
+
+      // Check if we already notified about readiness recently (avoid spam)
+      const eventKey = `ready_to_merge_${pr.number}`;
+      if (this.isRecentEvent(eventKey)) {
+        Logger.debug(`Already notified about PR #${pr.number} readiness recently`);
+        return { success: true, reason: 'already_notified_recently' };
+      }
+
+      // PR is ready to merge - send notification!
+      Logger.info(`🎉 PR #${pr.number} is now ready to merge!`);
+      
+      const details = readinessResult.details;
+      const statusInfo = {
+        status: 'READY TO MERGE',
+        emoji: '🚀',
+        color: '#28a745'
+      };
+
+      const data = this.createNotificationData(
+        `🚀 PR #${pr.number} Ready to Merge: ${pr.title}`,
+        `Your pull request has all approvals and checks are passing!`,
+        pr.html_url,
+        statusInfo,
+        `✅ ${details.details.approvalCount} approval(s)\n✅ ${details.details.passedCheckRuns} checks passed\n🎯 Status: ${details.summary}`
+      );
+
+      // Track this notification to avoid duplicates
+      this.trackRecentEvent(eventKey);
+
+      return await this.notificationService.sendPRNotification(context, 'pull_request', 'ready_to_merge', data);
+
+    } catch (error) {
+      Logger.error(`Error checking PR #${pr.number} ready to merge status`, error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Check if we've recently sent a notification for this event
+   * @param {string} eventKey - Unique event identifier
+   * @returns {boolean} True if recent
+   */
+  isRecentEvent(eventKey) {
+    if (!this.constructor.recentReadyToMergeEvents) {
+      this.constructor.recentReadyToMergeEvents = new Map();
+    }
+
+    const now = Date.now();
+    const recentTime = 30 * 60 * 1000; // 30 minutes
+
+    // Clean old events
+    for (const [key, timestamp] of this.constructor.recentReadyToMergeEvents.entries()) {
+      if (now - timestamp > recentTime) {
+        this.constructor.recentReadyToMergeEvents.delete(key);
+      }
+    }
+
+    return this.constructor.recentReadyToMergeEvents.has(eventKey);
+  }
+
+  /**
+   * Track that we sent a ready-to-merge notification
+   * @param {string} eventKey - Unique event identifier
+   */
+  trackRecentEvent(eventKey) {
+    if (!this.constructor.recentReadyToMergeEvents) {
+      this.constructor.recentReadyToMergeEvents = new Map();
+    }
+    this.constructor.recentReadyToMergeEvents.set(eventKey, Date.now());
   }
 }
