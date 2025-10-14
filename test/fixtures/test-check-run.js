@@ -2,7 +2,7 @@
  * Simple test to verify check_run handler works
  */
 
-const CheckRunHandler = require('../../src/CheckRunHandler'); // Adjust path as needed
+import CheckRunHandler from '../../src/CheckRunHandler';
 
 // Simulate a check_run.completed webhook payload
 const mockCheckRunPayload = {
