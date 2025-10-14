@@ -62,7 +62,7 @@ NOTIFY_CHECK_RESULTS=false
 NOTIFY_PR_UPDATES=false
 ```
 
-### Balanced Setup (Recommended for most teams)
+### Balanced Setup (Recommended)
 
 ```env
 # Most important events without noise

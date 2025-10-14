@@ -10,7 +10,7 @@
 - **CI/CD Integration**: Check runs and check suites completion notifications
 - **Clean Email Content**: Standard HTML email template with no diff snippets
 - **Multiple SMTP Support**: Works with Gmail, Outlook, Yahoo, and custom SMTP servers
-- **Additional Recipients**: Optionally notify extra teams or users beyond PR owner
+- **Additional Recipients**: Optionally notify additional users beyond PR owner
 - **Audit Logging**: Complete audit trail of all notifications sent
 
 ## Setup

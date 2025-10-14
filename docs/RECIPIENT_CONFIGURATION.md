@@ -5,7 +5,7 @@ The PR notification app **always prioritizes the PR owner/creator** as the prima
 ## Recipient Priority Order
 
 1. **PR Owner/Creator** (ALWAYS FIRST) - The user who created the PR
-2. **Additional Recipients** - Configurable extra teams or users
+2. **Additional Recipients** - Configurable additional users
 
 ## Configuration Options
 
@@ -17,27 +17,27 @@ You can configure additional recipients using these environment variables:
 
 ```bash
 # Direct email addresses (comma-separated)
-ADDITIONAL_RECIPIENT_EMAILS="team-lead@company.com,devops@company.com"
+ADDITIONAL_RECIPIENT_EMAILS="lead@company.com,reviewer@company.com"
 ```
 
 #### Additional GitHub Username Recipients
 
 ```bash
 # GitHub usernames (comma-separated) - will be resolved to emails
-ADDITIONAL_RECIPIENT_USERNAMES="team-lead,devops-user,senior-dev"
+ADDITIONAL_RECIPIENT_USERNAMES="lead,reviewer,senior-dev"
 ```
 
 ### Example Configuration
 
 ```bash
 # .env file example
-ADDITIONAL_RECIPIENT_EMAILS="notifications@company.com,team-leads@company.com"
+ADDITIONAL_RECIPIENT_EMAILS="notifications@company.com,leads@company.com"
 ADDITIONAL_RECIPIENT_USERNAMES="project-manager,senior-developer"
 
 # This will result in notifications being sent to:
 # 1. PR owner/creator (ALWAYS FIRST)
 # 2. notifications@company.com
-# 3. team-leads@company.com  
+# 3. leads@company.com  
 # 4. project-manager@... (resolved from GitHub)
 # 5. senior-developer@... (resolved from GitHub)
 ```
